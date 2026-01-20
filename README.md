@@ -6,7 +6,8 @@ Python==3.12.4 numpy==1.26.4 scikit-multilearn==0.2.0 torch==2.4.1
 
 # Usage:
 ## 数据集文件夹
-在 https://mulan.sourceforge.net/datasets-mlc.html 可以下载到多标签表格数据集, 在当前目录下创建data文件夹, 将数据集文件放入即可。
+Multi-label datasets can be downloaded from https://mulan.sourceforge.net/datasets-mlc.html.
+Create a data folder in the current directory, and place the downloaded dataset files into it.
 
 ## run main.py
 In detail, we can train on different datasets:

@@ -1,34 +1,51 @@
-# D2ACE
+# 1. D2ACE
+
 D2ACE: Multi-Label Batch Selection Guided by Dual Dynamics and Adaptive Correlation Enhancement
 
-# Package:
+
+
+# 2. Package:
+
 Python==3.12.4 numpy==1.26.4 scikit-multilearn==0.2.0 torch==2.4.1
 
-# Usage:
-## datasets
+
+
+# 3. Usage:
+
+## 3.1 Datasets
+
 Multi-label datasets can be downloaded from https://mulan.sourceforge.net/datasets-mlc.html.
 Create a data folder in the current directory, and place the downloaded dataset files into it.
 
-## run main.py
+
+
+## 3.2 Run main.py
+
 In detail, we can train on different datasets:
 
-**dataset used**
+#### **dataset used**
+
 ```python
 path_to_arff_files = ["cal500", "birds", "enron", "scene", "yeast", "Corel5k", "rcv1subset1", "rcv1subset2", "rcv1subset3", "bibtex", "yahoo-Arts1", "yahoo-Business1", "mediamill"]
 ```
 
-**label count of corresponding dataset:**
+#### **label count of corresponding dataset:**
+
 ```python
 label_counts = [174, 19, 53, 6, 14, 374, 101, 101, 101, 159, 25, 28, 101]
 ```
 
-**feature retention ratio of the corresponding dataset:**
+#### **feature retention ratio of the corresponding dataset:**
+
 ```python
 select_feature = [1, 1, 1, 1, 1, 1, 0.02, 0.02, 0.02, 1, 0.05, 0.05, 1]
 ```
 
-# Key code:
-1. uncertainty metric
+
+
+# 4. Key code:
+
+## 4.1 Uncertainty metric
 
 ```python
 def update_H(H, y_pred, ids, max_history_length=5):
@@ -53,7 +70,7 @@ def update_E(H,E,ids,label_dim):
 
 
 
-2. hardness metric
+## 4.2 Hardness metric
 
 ```python
 def update_ema_flip(ema_flip, H, ids, label_dim, alpha=0.7):
@@ -77,3 +94,61 @@ def update_ema_flip(ema_flip, H, ids, label_dim, alpha=0.7):
 h_mat = loss * (1.0 - ema_flip_np)
 ```
 
+
+
+## 4.3 Dynamic Label Weight
+
+```python
+mu_h = np.mean(h_mat, axis=0)
+sigma_h = np.std(h_mat, axis=0)
+v_h_raw = np.exp(0.5 * mu_h + 0.5 * sigma_h)
+
+mu_e = np.mean(custom_dataloader.E, axis=0)
+sigma_e = np.std(custom_dataloader.E, axis=0)
+v_e_raw = np.exp(0.5 * mu_e + 0.5 * sigma_e)
+```
+
+
+
+## 4.4 Local Context-Aware Label Correlation Enhancement
+
+```python
+P_neighbors_fixed = P_fixed[nbrs_idx]  # shape: (ins_dim, n_nbrs, label_dim)
+Z_fixed = np.any(P_neighbors_fixed, axis=1).astype(np.float32)  # shape: (ins_dim, label_dim)
+
+P = P_fixed                # (ins_dim, label_dim)
+Z = Z_fixed.astype(np.float32)
+
+# ----- mask E/h -----
+E_mat = custom_dataloader.E.astype(np.float64)
+H_mat = h_mat.astype(np.float64)
+
+E_masked = E_mat * P
+H_masked = H_mat * P
+```
+
+
+
+## 4.5 Sampling
+
+```python
+ sample_score_from_E = S1_uncertain + S2_uncertain
+ sample_score_from_h = S1_hard + S2_hard
+
+# ---- sample mixing schedule ----
+start_epoch = 10
+end_epoch = 70
+
+t = np.clip(epoch, start_epoch, end_epoch)
+frac = (t - start_epoch) / max(1, (end_epoch - start_epoch))
+
+p_beta_epoch = 0.7 + frac * (0.3 - 0.7)
+p_from_E = calculate_probabilities(sample_score_from_E, epoch, start_epoch, num_epochs, 8)
+p_from_h = calculate_probabilities(sample_score_from_h, epoch, start_epoch, num_epochs, 8)
+```
+
+
+
+# 5. Contact:
+
+If you have any questions or suggestions, feel free to contact me: Anonymous.

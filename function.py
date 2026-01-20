@@ -1,7 +1,4 @@
-#!/usr/bin/env python
-# coding: utf-8
 
-# In[ ]:
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 def ImR(y):

@@ -4,9 +4,9 @@ import torch.nn as nn
 import random
 import os
 import shutil
-#根据标签筛选数据
+
+# Filter data based on labels
 def get_filter_X(X,Y,ratio):
-    # 对标签Y进行频率统计
     unique_labels, label_counts = np.unique(Y, axis=0, return_counts=True)
     s=list(zip(unique_labels, label_counts))
     s=sorted(s,key=lambda x:x[1])
@@ -23,20 +23,20 @@ def get_filter_X(X,Y,ratio):
     filter_Y=Y[index_all]
     return filter_X,filter_Y
 
-#标签概率邻接矩阵A：A(ij)=1/2[p(li|lj)+p(li|lj)]
+# Label probability adjacency matrix A：A(ij)=1/2[p(li|lj)+p(li|lj)]
 def compute_A_matrix(labels):
-    num_labels = len(labels[0])  # 获取标签的数量
+    num_labels = len(labels[0])  # Obtain the number of labels
     adjacency_matrix = np.zeros((num_labels, num_labels))
 
     for i in range(num_labels):
         for j in range(num_labels):
             if i != j:
-                # 计算标签i和标签j的相关性
+                # Calculate the correlation between label i and label j
                 common_count = sum([1 for k in range(len(labels)) if labels[k][i] == 1 and labels[k][j] == 1])
                 i_count = sum(labels[k][i] for k in range(len(labels)))
                 j_count = sum(labels[k][j] for k in range(len(labels)))
                 
-                # 计算相关性并更新邻接矩阵
+                # Compute correlations and update the adjacency matrix
                 if i_count != 0 and j_count != 0:
                     p_ij = common_count / i_count
                     p_ji = common_count / j_count
@@ -44,7 +44,7 @@ def compute_A_matrix(labels):
 
     return adjacency_matrix
 
-#对偶解码器
+# Dual Decoder
 def get_double_decoder_loss(labelEmbedding,A):
     sums=0
     labelCount=labelEmbedding.size(0)
@@ -56,17 +56,17 @@ def get_double_decoder_loss(labelEmbedding,A):
     sums=sums/(labelCount**2)
     return sums
 
-#获取边
+# Edge Extraction
 def get_edge(A,device):
     edge_weights = A
-    # 找出权重大于0的边
+    # Identify edges with weights greater than 0
     edge_list = []
     for i in range(edge_weights.size(0)):
         for j in range(edge_weights.size(1)):
             if i != j and edge_weights[i][j] > 0:
                 edge_list.append((i, j))
 
-    # 构建COO格式的边列表
+    # Build edge list in COO format
     edges = torch.tensor(edge_list, dtype=torch.long).t().to(device)
     return edges
 

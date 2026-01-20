@@ -112,7 +112,6 @@ class LinkPredictionLoss_cosine(nn.Module):
         
         return loss
 
-##采样
 def gumbel_sigmoid(logits, tau=2/3, gumbel_noise=True, hard=False):
     '''
     Sample from the binary Concrete distribution and optionally discretize.

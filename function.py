@@ -169,7 +169,6 @@ def get_samples_from_indices(dataset, indices):
     if not x_samples:
         return None, None
 
-    # 将列表转换为Tensor
     x_samples = torch.stack(x_samples)
     y_samples = torch.stack(y_samples)
 

@@ -10,9 +10,7 @@ class CLIFModel(nn.Module):
         super(CLIFModel,self).__init__()
         self.rand_seed=configs['seed']
 
-        #定义label_emb
         self.label_emb=nn.Parameter(torch.eye(configs['num_classes']),requires_grad=False)
-        #定义label_edge
         self.label_edge=nn.Parameter(torch.eye(configs['num_classes']),requires_grad=False)
 
         self.hidden=768

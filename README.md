@@ -5,7 +5,7 @@ D2ACE: Multi-Label Batch Selection Guided by Dual Dynamics and Adaptive Correlat
 Python==3.12.4 numpy==1.26.4 scikit-multilearn==0.2.0 torch==2.4.1
 
 # Usage:
-## 数据集文件夹
+## Datasets
 Multi-label datasets can be downloaded from https://mulan.sourceforge.net/datasets-mlc.html.
 Create a data folder in the current directory, and place the downloaded dataset files into it.
 

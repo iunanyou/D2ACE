@@ -719,7 +719,6 @@ def training(configs, train_dataset, test_dataset):
     return mets
 
 
-# 数据集配置
 path_to_arff_files = ["emotions", "scene", "yeast", "Corel5k", "rcv1subset1", "rcv1subset2", "rcv1subset3", 
                       "yahoo-Business1", "yahoo-Arts1", "bibtex", 'tmc2007', 'enron', 'cal500', 'LLOG-F','genbase','birds','mediamill']
 label_counts = [6, 6, 14, 374, 101, 101, 101, 28, 25, 159, 22, 53, 174, 75,27,19,101]

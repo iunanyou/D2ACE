@@ -151,4 +151,4 @@ p_from_h = calculate_probabilities(sample_score_from_h, epoch, start_epoch, num_
 
 # 5. Contact:
 
-If you have any questions or suggestions, feel free to contact me: Anonymous.
+If you have any questions or suggestions, feel free to contact me: uaena_lee@163.com

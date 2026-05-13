@@ -1,7 +1,9 @@
 # 1. D2ACE
 
 D2ACE: Multi-Label Batch Selection Guided by Dual Dynamics and Adaptive Correlation Enhancement
+
 Accpeted by IJCAI-ECAI 2026
+
 https://arxiv.org/abs/2605.09400
 
 

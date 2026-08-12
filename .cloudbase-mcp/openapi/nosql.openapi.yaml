@@ -1,0 +1,1008 @@
+openapi: 3.0.0
+
+info:
+  title: NoSQL RESTful API
+  version: 1.0.0
+  description: >-
+    ### 功能介绍
+
+    文档型数据库（NoSQL）的 RESTful HTTP API，提供集合管理、文档 CRUD、聚合查询、事务操作和数据库命令执行等功能。
+
+
+    ### 请求域名
+
+    ```
+
+    https://{envId}.api.tcloudbasegateway.com/v1/database/instances/{instance}/databases/{database}/
+
+    ```
+
+
+    URL 路径参数说明：
+
+    - `envId`：环境 ID
+
+    - `instance`：实例 ID，不能为空。如访问默认实例，则值为 `(default)`（注意左右括号是值的一部分，需要完整输入）
+
+    - `database`：数据库名称，不能为空。如访问默认数据库，则值为 `(default)`（注意左右括号是值的一部分，需要完整输入）
+
+
+    示例：
+
+    - 访问默认实例的默认数据库：`/v1/database/instances/(default)/databases/(default)/`
+
+    - 访问实例 `test_instance` 的默认数据库：`/v1/database/instances/test_instance/databases/(default)/`
+
+    - 访问实例 `test_instance` 的数据库 `mydb`：`/v1/database/instances/test_instance/databases/mydb/`
+
+
+    ### EJSON 格式
+
+    请求体支持 Relaxed EJSON 和 Strict EJSON 格式，响应体强制为 Strict EJSON 格式。
+
+
+    EJSON (Extended JSON) 是 MongoDB 的扩展 JSON 格式，支持标准 JSON 不支持的数据类型：
+
+    - `ObjectId`：`{"$oid": "507f1f77bcf86cd799439011"}`
+
+    - `Date`：`{"$date": {"$numberLong": "1736929200000"}}`
+
+    - `Int`：`{"$numberInt": "12345"}`
+
+    - `Long`：`{"$numberLong": "9223372036854775807"}`
+
+    - `Decimal128`：`{"$numberDecimal": "123.456"}`
+
+    - `Binary`：`{"$binary": {"base64": "...", "subType": "00"}}`
+
+    - `RegExp`：`{"$regex": "pattern", "$options": "i"}`
+
+
+    ### 接入指引
+
+    调用以下接口需要传递 AccessToken，格式如 `Authorization: Bearer <token>`。Token 获取方式参考：https://docs.cloudbase.net/http-api/basic/access-token
+
+
+    ### 错误码与 HTTP 状态码
+
+    <table>
+      <thead>
+        <tr>
+          <td>错误码</td>
+          <td>HTTP 状态码</td>
+          <td>说明</td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>INVALID_PARAM</td><td>400</td><td>参数无效或缺失</td></tr>
+        <tr><td>DATABASE_PERMISSION_DENIED</td><td>401</td><td>数据库权限被拒绝</td></tr>
+        <tr><td>DATABASE_INVALID_OPERRATOR</td><td>403</td><td>不支持的操作</td></tr>
+        <tr><td>DATABASE_COLLECTION_NOT_EXIST</td><td>404</td><td>集合不存在</td></tr>
+        <tr><td>DOCUMENT_NOT_FOUND</td><td>404</td><td>文档不存在（仅单文档操作）</td></tr>
+        <tr><td>DATABASE_COLLECTION_ALREADY_EXIST</td><td>409</td><td>集合已存在</td></tr>
+        <tr><td>DATABASE_DUPLICATE_WRITE</td><td>409</td><td>唯一索引冲突</td></tr>
+        <tr><td>EXCEED_REQUEST_LIMIT</td><td>422</td><td>请求配额超限</td></tr>
+        <tr><td>EXCEED_CONCURRENT_REQUEST_LIMIT</td><td>422</td><td>并发连接数超限</td></tr>
+        <tr><td>DATABASE_REQUEST_FAILED</td><td>500</td><td>数据库请求失败</td></tr>
+        <tr><td>SYS_ERR</td><td>500</td><td>系统内部错误</td></tr>
+        <tr><td>DATABASE_TRANSACTION_CONFLICT</td><td>503</td><td>事务冲突</td></tr>
+        <tr><td>DATABASE_TRANSACTION_FAIL</td><td>503</td><td>事务执行失败</td></tr>
+        <tr><td>DATABASE_TIMEOUT</td><td>504</td><td>数据库操作超时</td></tr>
+      </tbody>
+    </table>
+
+tags:
+  - name: 集合操作
+    description: 集合（Collection）的创建和管理
+  - name: 文档操作
+    description: 文档的增删改查操作，支持批量操作和单文档操作
+  - name: 聚合查询
+    description: 使用 MongoDB 聚合管道进行复杂数据分析
+  - name: 事务操作
+    description: 事务的创建、提交和回滚
+  - name: 数据库命令
+    description: 执行 MongoDB 原生数据库命令（批量）
+
+servers:
+  - url: https://{envId}.api.tcloudbasegateway.com/v1/database/instances/{instance}/databases/{database}
+    description: 云开发文档型数据库 API
+    variables:
+      envId:
+        default: "your-envId"
+        description: 环境 ID
+      instance:
+        default: "(default)"
+        description: 实例 ID，默认实例使用 (default)，注意左右括号是值的一部分
+      database:
+        default: "(default)"
+        description: 数据库名称，默认数据库使用 (default)，注意左右括号是值的一部分
+
+paths:
+  /collections:
+    post:
+      tags:
+        - 集合操作
+      operationId: createCollection
+      summary: 创建集合
+      description: >-
+        创建新的集合（表），仅管理员权限可以创建集合。集合名称必须符合 MongoDB 命名规范。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - collectionName
+              properties:
+                collectionName:
+                  type: string
+                  description: 集合名称
+            example:
+              collectionName: "users"
+      responses:
+        "201":
+          description: 集合创建成功
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: "INVALID_PARAM"
+                message: "Collection name is required"
+                request_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        "409":
+          description: 集合已存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /collections/{collectionName}/documents:
+    post:
+      tags:
+        - 文档操作
+      operationId: insertDocuments
+      summary: 批量插入文档
+      description: >-
+        向指定集合中批量插入一个或多个文档，数据格式为 EJSON 对象数组。支持事务操作。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: collectionName
+          in: path
+          description: 集合名称
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - data
+              properties:
+                data:
+                  type: array
+                  items:
+                    type: object
+                  description: 文档数据数组（EJSON 对象格式）
+                transactionId:
+                  type: string
+                  description: 事务 ID（可选）
+            example:
+              data:
+                - name: "Alice"
+                  age:
+                    $numberInt: "25"
+                - name: "Bob"
+                  age:
+                    $numberInt: "30"
+      responses:
+        "201":
+          description: 文档插入成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  insertedIds:
+                    type: array
+                    items:
+                      type: string
+                    description: 插入成功的文档 ID 列表
+              example:
+                insertedIds:
+                  - "507f1f77bcf86cd799439011"
+                  - "507f191e810c19729de860ea"
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      tags:
+        - 文档操作
+      operationId: queryDocuments
+      summary: 查询文档列表
+      description: >-
+        查询集合中的文档列表，支持复杂查询条件（MongoDB 查询语法）、分页、排序和字段过滤。
+
+        当 `count=true` 时，仅返回符合条件的文档数量，不返回文档列表。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: collectionName
+          in: path
+          description: 集合名称
+          required: true
+          schema:
+            type: string
+        - name: query
+          in: query
+          description: 查询条件（EJSON 字符串），如 `{"age":{"$gte":18}}`
+          required: false
+          schema:
+            type: string
+            default: "{}"
+        - name: offset
+          in: query
+          description: 偏移量（分页）
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          description: 每页数量
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: order
+          in: query
+          description: 排序规则（JSON 字符串），如 `[{"field":"age","direction":"desc"}]`
+          required: false
+          schema:
+            type: string
+        - name: projection
+          in: query
+          description: 字段过滤（JSON 字符串），如 `{"name":1,"email":1}`
+          required: false
+          schema:
+            type: string
+        - name: count
+          in: query
+          description: 设置为 `true` 时仅返回文档数量
+          required: false
+          schema:
+            type: boolean
+        - name: transactionId
+          in: query
+          description: 事务 ID
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    description: 文档列表结果
+                    properties:
+                      offset:
+                        type: integer
+                        description: 当前偏移量
+                      limit:
+                        type: integer
+                        description: 每页数量
+                      list:
+                        type: array
+                        items:
+                          type: object
+                        description: 文档列表（EJSON 格式）
+                  - type: object
+                    description: 统计数量结果（count=true 时）
+                    properties:
+                      total:
+                        type: integer
+                        description: 符合条件的文档总数
+              examples:
+                list:
+                  summary: 文档列表
+                  value:
+                    offset: 0
+                    limit: 20
+                    list:
+                      - _id:
+                          $oid: "507f1f77bcf86cd799439011"
+                        name: "John Doe"
+                        age:
+                          $numberInt: "30"
+                count:
+                  summary: 统计数量（count=true）
+                  value:
+                    total: 42
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      tags:
+        - 文档操作
+      operationId: updateDocuments
+      summary: 批量更新文档
+      description: >-
+        根据查询条件批量更新文档。支持 MongoDB 更新操作符（如 `$set`、`$inc`、`$push` 等）。
+
+
+        当 `replaceMode` 为 `false`（默认）且 `data` 中不包含更新操作符时，会自动包装为 `$set` 操作。
+
+
+        不允许修改 `_openid` 和 `_id` 字段。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: collectionName
+          in: path
+          description: 集合名称
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+                - data
+              properties:
+                query:
+                  type: object
+                  description: 查询条件（EJSON 对象）
+                data:
+                  type: object
+                  description: 更新数据（EJSON 对象），支持更新操作符
+                multi:
+                  type: boolean
+                  description: 是否批量更新
+                  default: false
+                upsert:
+                  type: boolean
+                  description: 不存在时是否创建
+                  default: false
+                replaceMode:
+                  type: boolean
+                  description: 是否替换整个文档（为 true 时替换整个文档，为 false 时合并更新）
+                  default: false
+                transactionId:
+                  type: string
+                  description: 事务 ID
+            example:
+              query:
+                _id:
+                  $oid: "507f1f77bcf86cd799439011"
+              data:
+                $set:
+                  age:
+                    $numberInt: "31"
+                  updated_at:
+                    $date:
+                      $numberLong: "1736929200000"
+              multi: false
+              upsert: false
+              replaceMode: false
+      responses:
+        "200":
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateResult"
+              example:
+                updated: 1
+                matched: 1
+                upsert_id: ""
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /collections/{collectionName}/documents/{docId}:
+    get:
+      tags:
+        - 文档操作
+      operationId: getDocumentById
+      summary: 查询单个文档
+      description: >-
+        根据文档 `_id` 查询单个文档。支持字段过滤（projection）和事务中查询。如果文档不存在，返回 404。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: collectionName
+          in: path
+          description: 集合名称
+          required: true
+          schema:
+            type: string
+        - name: docId
+          in: path
+          description: 文档 ID（支持 ObjectId 字符串和普通字符串）
+          required: true
+          schema:
+            type: string
+        - name: projection
+          in: query
+          description: 字段过滤（JSON 字符串），如 `{"name":1,"email":1}`
+          required: false
+          schema:
+            type: string
+        - name: transactionId
+          in: query
+          description: 事务 ID
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 文档内容（EJSON 格式）
+              example:
+                _id:
+                  $oid: "507f1f77bcf86cd799439011"
+                name: "John Doe"
+                age:
+                  $numberInt: "30"
+                email: "john@example.com"
+        "404":
+          description: 文档不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: "DOCUMENT_NOT_FOUND"
+                message: "Document not found"
+                request_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+    patch:
+      tags:
+        - 文档操作
+      operationId: updateDocumentById
+      summary: 更新单个文档
+      description: >-
+        根据文档 `_id` 更新单个文档。支持所有更新操作符（`$set`、`$inc`、`$push` 等）。
+
+        使用 `returnDoc=true` 可返回更新后的完整文档。如果文档不存在且 `upsert=false`，返回 404。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: collectionName
+          in: path
+          description: 集合名称
+          required: true
+          schema:
+            type: string
+        - name: docId
+          in: path
+          description: 文档 ID（支持 ObjectId 字符串和普通字符串）
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - data
+              properties:
+                data:
+                  type: object
+                  description: 更新数据（EJSON 对象），支持更新操作符
+                replaceMode:
+                  type: boolean
+                  description: 是否替换整个文档
+                  default: false
+                upsert:
+                  type: boolean
+                  description: 不存在时是否创建
+                  default: false
+                returnDoc:
+                  type: boolean
+                  description: 是否返回更新后的文档
+                  default: false
+                transactionId:
+                  type: string
+                  description: 事务 ID
+            example:
+              data:
+                $set:
+                  age:
+                    $numberInt: "31"
+              replaceMode: false
+              returnDoc: true
+      responses:
+        "200":
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/UpdateResult"
+                  - type: object
+                    properties:
+                      doc:
+                        type: object
+                        description: 更新后的文档（仅 returnDoc=true 时返回）
+              examples:
+                without_doc:
+                  summary: 不返回文档
+                  value:
+                    updated: 1
+                    matched: 1
+                    upsert_id: ""
+                with_doc:
+                  summary: 返回更新后的文档（returnDoc=true）
+                  value:
+                    updated: 1
+                    matched: 1
+                    upsert_id: ""
+                    doc:
+                      _id:
+                        $oid: "507f1f77bcf86cd799439011"
+                      name: "John"
+                      age:
+                        $numberInt: "31"
+        "404":
+          description: 文档不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      tags:
+        - 文档操作
+      operationId: deleteDocumentById
+      summary: 删除单个文档
+      description: >-
+        根据文档 `_id` 删除单个文档。使用标准的 RESTful DELETE 方法。如果文档不存在，返回 404。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: collectionName
+          in: path
+          description: 集合名称
+          required: true
+          schema:
+            type: string
+        - name: docId
+          in: path
+          description: 文档 ID（支持 ObjectId 字符串和普通字符串）
+          required: true
+          schema:
+            type: string
+        - name: transactionId
+          in: query
+          description: 事务 ID
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: integer
+                    description: 删除的文档数量
+              example:
+                deleted: 1
+        "404":
+          description: 文档不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: "DOCUMENT_NOT_FOUND"
+                message: "Document not found"
+                request_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+  /collections/{collectionName}/documents/remove:
+    post:
+      tags:
+        - 文档操作
+      operationId: removeDocuments
+      summary: 批量删除文档
+      description: >-
+        根据查询条件批量删除文档。使用 POST 方法是因为需要在请求体中传递复杂的查询条件。
+
+        `query` 不能为空对象（防止误删所有数据）。非管理员会自动注入 `_openid` 条件。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: collectionName
+          in: path
+          description: 集合名称
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: object
+                  description: 查询条件（EJSON 对象，不能为空）
+                multi:
+                  type: boolean
+                  description: 是否批量删除
+                  default: false
+                transactionId:
+                  type: string
+                  description: 事务 ID
+            example:
+              query:
+                _id:
+                  $oid: "507f1f77bcf86cd799439011"
+              multi: false
+      responses:
+        "200":
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: integer
+                    description: 删除的文档数量
+              example:
+                deleted: 1
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /collections/{collectionName}/documents/aggregations:
+    post:
+      tags:
+        - 聚合查询
+      operationId: aggregate
+      summary: 聚合查询
+      description: >-
+        使用 MongoDB 原生聚合管道进行复杂数据分析。支持的聚合阶段包括：`$match`、`$group`、`$project`、`$sort`、`$limit`、`$skip`、`$unwind`、`$lookup`（仅管理员权限）、`$addFields`、`$count`、`$sample`、`$bucket`、`$bucketAuto`、`$geoNear`、`$replaceRoot`、`$sortByCount`。
+
+
+        自动限制：未指定 `$limit` 时自动添加 `$limit: 20`。PRIVATE 权限下自动添加 `$match: {_openid: "xxx"}`。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: collectionName
+          in: path
+          description: 集合名称
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pipeline
+              properties:
+                pipeline:
+                  type: array
+                  items:
+                    type: object
+                  description: MongoDB 原生聚合管道数组，每个元素是一个包含单个聚合阶段的 EJSON 对象
+            examples:
+              basic:
+                summary: 基本聚合查询
+                value:
+                  pipeline:
+                    - $match:
+                        age:
+                          $gte:
+                            $numberInt: "18"
+                    - $group:
+                        _id: "$city"
+                        count:
+                          $sum:
+                            $numberInt: "1"
+                    - $sort:
+                        count:
+                          $numberInt: "-1"
+                    - $limit: 10
+              count:
+                summary: $count 计数
+                value:
+                  pipeline:
+                    - $match:
+                        status: "active"
+                    - $count: "activeCount"
+      responses:
+        "200":
+          description: 聚合查询成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  list:
+                    type: array
+                    items:
+                      type: object
+                    description: 聚合结果列表（EJSON 格式）
+              examples:
+                group:
+                  summary: 分组统计结果
+                  value:
+                    list:
+                      - _id: "Beijing"
+                        count: 150
+                      - _id: "Shanghai"
+                        count: 120
+                count:
+                  summary: 计数结果
+                  value:
+                    list:
+                      - activeCount: 42
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /transactions:
+    post:
+      tags:
+        - 事务操作
+      operationId: startTransaction
+      summary: 开启事务
+      description: >-
+        开启一个新的数据库事务，返回事务 ID。后续的文档操作可通过 `transactionId` 参数加入此事务。
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: 事务创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactionId:
+                    type: string
+                    description: 事务 ID
+              example:
+                transactionId: "txn_abc123def456"
+
+  /transactions/{transactionId}/commit:
+    post:
+      tags:
+        - 事务操作
+      operationId: commitTransaction
+      summary: 提交事务
+      description: >-
+        提交指定的事务，使事务中的所有操作生效。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: transactionId
+          in: path
+          description: 事务 ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 事务提交成功
+
+  /transactions/{transactionId}/rollback:
+    post:
+      tags:
+        - 事务操作
+      operationId: rollbackTransaction
+      summary: 回滚事务
+      description: >-
+        回滚指定的事务，撤销事务中的所有操作。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: transactionId
+          in: path
+          description: 事务 ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 事务回滚成功
+
+  /commands:
+    post:
+      tags:
+        - 数据库命令
+      operationId: runCommands
+      summary: 执行数据库命令
+      description: >-
+        批量执行 MongoDB 原生数据库命令。所有命令按顺序执行，返回对应的结果数组。支持在事务中执行。
+
+
+        仅管理员权限可以调用。
+
+
+        常用命令包括：`find`、`insert`、`update`、`delete`、`aggregate`、`createIndexes` 等。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - commands
+              properties:
+                commands:
+                  type: array
+                  items:
+                    type: object
+                  description: MongoDB 原生命令数组，每个元素是一个 EJSON 对象
+                transactionId:
+                  type: string
+                  description: 事务 ID（在事务中执行所有命令）
+            examples:
+              find:
+                summary: 查询命令
+                value:
+                  commands:
+                    - find: "users"
+                      filter:
+                        age:
+                          $gte:
+                            $numberInt: "18"
+                      limit:
+                        $numberInt: "10"
+              insert:
+                summary: 插入命令
+                value:
+                  commands:
+                    - insert: "users"
+                      documents:
+                        - name: "Alice"
+                          age:
+                            $numberInt: "25"
+                        - name: "Bob"
+                          age:
+                            $numberInt: "30"
+              batch:
+                summary: 批量命令（事务）
+                value:
+                  commands:
+                    - insert: "orders"
+                      documents:
+                        - userId: "user123"
+                          amount:
+                            $numberInt: "100"
+                          status: "pending"
+                    - update: "inventory"
+                      updates:
+                        - q:
+                            productId: "prod456"
+                          u:
+                            $inc:
+                              stock:
+                                $numberInt: "-1"
+                  transactionId: "txn_abc123"
+      responses:
+        "200":
+          description: 命令执行成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  list:
+                    type: array
+                    items:
+                      type: array
+                      items:
+                        type: object
+                    description: 二维 EJSON 数组，list[i] 对应 commands[i] 的执行结果
+              example:
+                list:
+                  - - cursor:
+                        firstBatch:
+                          - _id:
+                              $oid: "507f1f77bcf86cd799439011"
+                            name: "John"
+                            age:
+                              $numberInt: "30"
+                        id:
+                          $numberLong: "0"
+                        ns: "db.users"
+                      ok:
+                        $numberInt: "1"
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: 使用 AccessToken 进行认证
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: 错误码
+          example: "INVALID_PARAM"
+        message:
+          type: string
+          description: 错误信息
+          example: "param.query can't be empty"
+        request_id:
+          type: string
+          description: 请求唯一 ID
+          example: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+    UpdateResult:
+      type: object
+      properties:
+        updated:
+          type: integer
+          description: 更新的文档数量
+        matched:
+          type: integer
+          description: 匹配的文档数量
+        upsert_id:
+          type: string
+          description: upsert 创建的文档 ID（如有）

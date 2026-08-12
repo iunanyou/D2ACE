@@ -1,0 +1,476 @@
+openapi: 3.0.3
+info:
+  title: AI 大模型接入
+  description: |
+    ### 功能介绍
+
+    该系列开放 API 提供了统一对接各个大模型的能力，只需在云开发环境中配置所需大模型的 token（或其他大模型要求的认证方式），即可快速接入不同大模型。该系列模型支持 [SSE](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events) 格式响应。
+
+    ### 接入指引
+
+    调用以下接口需要传递 AccessToken，格式如`Authorization: Bearer <token>`。Token 获取方式参考：[访问凭证](../basic/access-token)
+
+    ### HTTP 状态码
+
+    根据返回结果的不同，可能会出现 `2xx`, `4xx`, `5xx` 状态码。某些大模型会在`200`状态码中通过响应体指示错误，应当视情况处理。
+
+    ### 错误码
+
+    以下列出了该系列 API 特定的错误码，完整列表参考：[服务端错误码](../../error-code/service)
+
+    <table>
+      <thead>
+      <tr>
+        <td>错误码</td>
+        <td>含义</td>
+      </tr>
+      </thead>
+      <tr>
+        <td>AI_MODEL_CONFIG_MISSING</td>
+        <td>缺少 API Key 等调用模型的必要配置</td>
+      </tr>
+      <tr>
+        <td>AI_MODEL_PARAM_INVALID</td>
+        <td>调用模型的参数异常</td>
+      </tr>
+      <tr>
+        <td>AI_MODEL_DISABLED</td>
+        <td>模型已停用，请在控制台上检查模型是否启用，或稍等 2 分钟再试。</td>
+      </tr>
+      <tr>
+        <td>AI_MODEL_NOT_SUPPORTED</td>
+        <td>不支持的具体模型，请检查请求体中是否正确传入 model 参数；调用 cloudbase 分组时，请确认该模型已在控制台启用。</td>
+      </tr>
+      <tr>
+        <td>AI_MODEL_PARAM_REQUIRED</td>
+        <td>请求体中缺少必填的 model 参数，请检查传参。</td>
+      </tr>
+      <tr>
+        <td>AI_MODEL_NOT_FOUND</td>
+        <td>未找到指定模型分组</td>
+      </tr>
+      <tr>
+        <td>AI_CHANNEL_NOT_ALLOWED</td>
+        <td>小程序成长计划仅支持小程序 SDK 和云开发 SDK 调用。</td>
+      </tr>
+      <tr>
+        <td>EXCEED_CONCURRENT_REQUEST_LIMIT</td>
+        <td>调用接口超出并发限制，请稍等片刻再试，或提交工单申请提高并发。</td>
+      </tr>
+      <tr>
+        <td>EXCEED_TOKEN_QUOTA_LIMIT</td>
+        <td>大模型 Token 用量已超出配额或当前模型分组额度不可用，请购买资源包或调整模型分组配置后重试。</td>
+      </tr>
+    </table>
+  contact:
+    name: TCB
+    url: https://cloud.tencent.com/product/tcb
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  version: 1.0.0
+servers:
+  - url: https://{envId}.api.tcloudbasegateway.com
+    description: TCB openapi endpoint
+    variables:
+      envId:
+        default: "your-envId"
+        description: 环境 ID
+paths:
+  /v1/ai/{provider}/{path}:
+    post:
+      tags:
+        - 大模型接入服务
+      externalDocs:
+        description: 完整错误码列表参考：
+        url: https://docs.cloudbase.net/error-code/service
+      operationId: CallLLM
+      summary: 调用大模型服务
+      description: |
+        当调用大模型时需要传递额外路径时，可追加 `path` 参数，如 `chat/completions`。具体路径定义参考各大模型文档。
+
+        ### 流式输出 (server-sent events)
+
+        当启用流式输出时，应显式在请求头 `Accept` 中指定 `text/event-stream`，否则请求将在 60 秒后超时。
+
+        ### 协议形态
+
+        该接口支持 OpenAI Chat Completions、OpenAI Responses 和 Anthropic 兼容协议：
+
+        - `path` 为 `chat/completions` 时：使用 OpenAI 兼容协议，请求体与响应体均为 OpenAI Chat Completions 形态
+        - `path` 为 `responses` 时：使用 OpenAI Responses 协议，请求体与响应体均为 OpenAI Responses API 形态
+        - `path` 为 `v1/messages` 时：使用 Anthropic 协议，请求体与响应体均为 Anthropic Messages 形态
+
+        注意，使用 Anthropic Messages API 时，所选 `provider` 必须已配置 Anthropic 协议接入。
+        
+        **当前内置同时支持 OpenAI 与 Anthropic 协议的 provider 为**：
+        - `cloudbase`
+        - `hunyuan-v3`
+
+        **当前支持 OpenAI Responses 协议的 provider 与模型为**：
+        - `cloudbase` 分组下的 `hy3` 模型
+        - `hunyuan-v3` 分组下的 `hy3` 模型
+
+
+      parameters:
+        - name: provider
+          in: path
+          description: |
+            调用的模型分组名称，填写下列平台提供的内置模型分组中的任意一个：</br>
+            `cloudbase`: 云开发内置模型分组，兼容 OpenAI 协议，支持 kimi、glm 等主流模型；同时支持 OpenAI 与 Anthropic 协议 </br>
+            `hunyuan-v3`: 云开发内置混元模型分组，同时支持 OpenAI 与 Anthropic 协议 </br>
+
+            或填写在控制台上配置的其他自定义模型分组。
+          required: true
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/ProviderEnum"
+              - $ref: "#/components/schemas/ProviderCustom"
+        - name: path
+          in: path
+          description: |
+            对应大模型的调用路径。
+            OpenAI Chat Completions 协议示例 `chat/completions`；OpenAI Responses 协议示例 `responses`（仅 `cloudbase` 与 `hunyuan-v3` 分组下的 `hy3` 模型支持）；Anthropic 协议示例 `v1/messages`。
+          required: true
+          schema:
+            type: string
+      requestBody:
+        $ref: "#/components/requestBodies/JSONBody"
+      responses:
+        "200":
+          description: 调用大模型成功时返回（不一定返回正确结果）
+          headers:
+            X-Request-Id:
+              schema:
+                type: string
+              description: "请求ID"
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                example:
+                  id: chatcmpl-xxx
+                  object: chat.completion
+                  created: 1723618716
+                  model: deepseek-v4-flash
+                  choices:
+                    - index: 0
+                      message:
+                        role: assistant
+                        content: 你好，有什么我可以帮你的吗？
+                      finish_reason: stop
+                  usage:
+                    prompt_tokens: 11
+                    completion_tokens: 14
+                    total_tokens: 25
+              examples:
+                openai_completion:
+                  summary: OpenAI 协议非流式响应
+                  value:
+                    id: chatcmpl-xxx
+                    object: chat.completion
+                    created: 1723618716
+                    model: deepseek-v4-flash
+                    choices:
+                      - index: 0
+                        message:
+                          role: assistant
+                          content: 你好，有什么我可以帮你的吗？
+                        finish_reason: stop
+                    usage:
+                      prompt_tokens: 11
+                      completion_tokens: 14
+                      total_tokens: 25
+                anthropic_message:
+                  summary: Anthropic 协议非流式响应
+                  value:
+                    id: msg_xxx
+                    type: message
+                    role: assistant
+                    model: deepseek-v4-flash
+                    content:
+                      - type: text
+                        text: 你好，有什么我可以帮你的吗？
+                    stop_reason: end_turn
+                    stop_sequence: null
+                    usage:
+                      input_tokens: 11
+                      output_tokens: 14
+                openai_responses:
+                  summary: OpenAI Responses API 非流式响应
+                  value:
+                    id: resp_xxx
+                    object: response
+                    created_at: 1723618716
+                    status: completed
+                    model: hy3
+                    output:
+                      - id: msg_xxx
+                        type: message
+                        role: assistant
+                        status: completed
+                        content:
+                          - type: output_text
+                            text: 你好，有什么我可以帮你的吗？
+                            annotations: []
+                    usage:
+                      input_tokens: 11
+                      output_tokens: 14
+                      total_tokens: 25
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  data: {"id":"chatcmpl-xxx","object":"chat.completion.chunk","created":1723618716,"model":"deepseek-v4-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"你好"},"finish_reason":null}]}
+
+                  data: [DONE]
+              examples:
+                openai_stream:
+                  summary: OpenAI 协议流式响应
+                  value: |
+                    data: {"id":"chatcmpl-xxx","object":"chat.completion.chunk","created":1723618716,"model":"deepseek-v4-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"你好"},"finish_reason":null}]}
+
+                    data: [DONE]
+                anthropic_stream:
+                  summary: Anthropic 协议流式响应
+                  value: |
+                    event: message_start
+                    data: {"type":"message_start","message":{"id":"msg_xxx","type":"message","role":"assistant","model":"deepseek-v4-flash","content":[],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":11,"output_tokens":0}}}
+
+                    event: content_block_start
+                    data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+                    event: content_block_delta
+                    data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"你好"}}
+
+                    event: content_block_stop
+                    data: {"type":"content_block_stop","index":0}
+
+                    event: message_delta
+                    data: {"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"output_tokens":14}}
+
+                    event: message_stop
+                    data: {"type":"message_stop"}
+                openai_responses_stream:
+                  summary: OpenAI Responses API 流式响应
+                  value: |
+                    event: response.created
+                    data: {"type":"response.created","response":{"id":"resp_xxx","object":"response","created_at":1723618716,"status":"in_progress","model":"hy3","output":[]}}
+
+                    event: response.output_item.added
+                    data: {"type":"response.output_item.added","output_index":0,"item":{"id":"msg_xxx","type":"message","role":"assistant","status":"in_progress","content":[]}}
+
+                    event: response.content_part.added
+                    data: {"type":"response.content_part.added","item_id":"msg_xxx","output_index":0,"content_index":0,"part":{"type":"output_text","text":"","annotations":[]}}
+
+                    event: response.output_text.delta
+                    data: {"type":"response.output_text.delta","item_id":"msg_xxx","output_index":0,"content_index":0,"delta":"你好"}
+
+                    event: response.output_text.done
+                    data: {"type":"response.output_text.done","item_id":"msg_xxx","output_index":0,"content_index":0,"text":"你好，有什么我可以帮你的吗？"}
+
+                    event: response.content_part.done
+                    data: {"type":"response.content_part.done","item_id":"msg_xxx","output_index":0,"content_index":0,"part":{"type":"output_text","text":"你好，有什么我可以帮你的吗？","annotations":[]}}
+
+                    event: response.output_item.done
+                    data: {"type":"response.output_item.done","output_index":0,"item":{"id":"msg_xxx","type":"message","role":"assistant","status":"completed","content":[{"type":"output_text","text":"你好，有什么我可以帮你的吗？","annotations":[]}]}}
+
+                    event: response.completed
+                    data: {"type":"response.completed","response":{"id":"resp_xxx","object":"response","created_at":1723618716,"status":"completed","model":"hy3","output":[{"id":"msg_xxx","type":"message","role":"assistant","status":"completed","content":[{"type":"output_text","text":"你好，有什么我可以帮你的吗？","annotations":[]}]}],"usage":{"input_tokens":11,"output_tokens":14,"total_tokens":25}}}
+
+        "default":
+          $ref: "#/components/responses/CommonErrorResponse"
+
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+
+        "404":
+          $ref: "#/components/responses/RequestFailed"
+
+components:
+  responses:
+    InvalidRequest:
+      description: 请求失败
+      headers:
+        X-Request-Id:
+          schema:
+            type: string
+          description: "请求ID"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CommonErrorResponse"
+          examples:
+            AIModelConfigMissing:
+              summary: 缺少调用模型的必要配置，如 apikey 等(400)
+              value:
+                code: "AI_MODEL_CONFIG_MISSING"
+                message: "xxx"
+                requestId: "xxx"
+            AIModelParamInvalid:
+              summary: 调用模型的参数异常(400)
+              value:
+                code: "AI_MODEL_PARAM_INVALID"
+                message: "xxx"
+                requestId: "xxx"
+            AIModelNotSupported:
+              summary: 不支持的具体模型，请检查请求体中是否正确传入 model 参数；调用 cloudbase 分组时，请确认该模型已在控制台启用。(403)
+              value:
+                code: "AI_MODEL_NOT_SUPPORTED"
+                message: "xxx"
+                requestId: "xxx"
+    RequestFailed:
+      description: 请求失败
+      headers:
+        X-Request-Id:
+          schema:
+            type: string
+          description: "请求ID"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CommonErrorResponse"
+          examples:
+            AIModelNotFound:
+              summary: 未找到指定模型分组(404)
+              value:
+                code: "AI_MODEL_NOT_FOUND"
+                message: "xxx"
+                requestId: "xxx"
+    CommonErrorResponse:
+      description: 通用报错信息，详见 https://docs.cloudbase.net/error-code/service
+      headers:
+        X-Request-Id:
+          schema:
+            type: string
+          description: "请求ID"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CommonErrorResponse"
+          examples:
+            InvalidHost:
+              summary: 请求地址异常
+              value:
+                code: "INVALID_HOST"
+                message: "xxx"
+                requestId: "xxx"
+
+  requestBodies:
+    JSONBody:
+      required: true
+      description: |
+        请求参数参考所选模型分组与协议传递。
+
+        OpenAI Chat Completions 协议（`chat/completions`）兼容 OpenAI Chat Completions；OpenAI Responses 协议（`responses`）兼容 OpenAI Responses API，仅 `cloudbase` 与 `hunyuan-v3` 分组下的 `hy3` 模型支持；Anthropic 协议（`v1/messages`）兼容 Anthropic Messages API。
+
+        请求体中的 `model` 字段表示具体模型名称，需为控制台已启用的模型。
+      content:
+        application/json:
+          schema:
+            type: object
+            example:
+              model: deepseek-v4-flash
+              stream: false
+              messages:
+                - role: user
+                  content: 你好
+          examples:
+            common:
+              summary: 使用 OpenAI API 格式请求大模型传参示例(非流式)
+              value:
+                model: deepseek-v4-flash
+                stream: false
+                messages:
+                  - role: user
+                    content: 你好
+            stream:
+              summary: 使用 OpenAI API 格式请求大模型传参示例(流式)
+              value:
+                model: deepseek-v4-flash
+                stream: true
+                messages:
+                  - role: user
+                    content: 你好
+            openai_responses:
+              summary: 使用 OpenAI Responses API 格式请求大模型示例
+              value:
+                model: hy3
+                stream: false
+                input: 你好
+            openai_responses_stream:
+              summary: 使用 OpenAI Responses API 格式请求大模型示例
+              value:
+                model: hy3
+                stream: true
+                input: 你好
+            anthropic_messages:
+              summary: 使用 Anthropic API 格式请求大模型示例(非流式)
+              value:
+                model: deepseek-v4-flash
+                max_tokens: 1024
+                stream: false
+                messages:
+                  - role: user
+                    content: 你好
+            anthropic_messages_stream:
+              summary: 使用 Anthropic API 格式请求大模型示例(流式)
+              value:
+                model: deepseek-v4-flash
+                max_tokens: 1024
+                stream: true
+                messages:
+                  - role: user
+                    content: 你好
+
+  schemas:
+    CommonErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: 错误码
+        message:
+          type: string
+          description: 错误信息
+        requestId:
+          type: string
+          description: 请求 ID
+      description: 出错时返回的错误信息
+      example:
+        code: "AI_MODEL_PARAM_INVALID"
+        message: "xxx"
+        requestId: "xxx"
+    ProviderEnum:
+      description: |
+          调用的模型分组名称，填写下列平台提供的内置模型分组中的任意一个：</br>
+          `cloudbase`: 云开发内置模型分组，兼容 OpenAI 协议，支持 kimi、glm 等主流模型；同时支持 Anthropic 协议；其下的 `hy3` 模型额外支持 OpenAI Responses API </br>
+          `hunyuan-v3`: 云开发内置混元模型分组，同时支持 OpenAI 与 Anthropic 协议；其下的 `hy3` 模型额外支持 OpenAI Responses API </br>
+
+          或填写在控制台上配置的其他自定义模型分组。
+      type: string
+      enum:
+        - cloudbase
+        - hunyuan-v3
+    ProviderCustom:
+      type: string
+      nullable: false
+      example: qwen-custom
+  securitySchemes:
+    JWTAuth:
+      type: http
+      scheme: Bearer
+      description: 环境 ID 所对应的 token，使用登录认证(v2)获取
+    APIKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: TC3-HMAC-SHA256开头的腾讯云 3.0 版签名，将 Timestamp 和 Token 拼接在签名最后
+
+security:
+  - JWTAuth: []
+  - APIKey: []
+
+tags:
+  - name: 大模型接入服务
